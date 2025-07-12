@@ -19,3 +19,7 @@ Route::get('/queue-job', function () {
     ExampleJob::dispatch();
     return response()->json(['message' => 'Job queued successfully']);
 });
+
+Route::get('/sazid', function () {
+    return response()->json(['message' => 'Sazid healed successfully']);
+});
