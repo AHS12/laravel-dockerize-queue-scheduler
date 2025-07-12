@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // Schedule the ExampleCommand to run every minute
 Schedule::command('app:example-command')->everyMinute();
+
+// Clear Telescope entries daily
+Schedule::command('telescope:prune --hours=24')->daily();
