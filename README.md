@@ -22,7 +22,9 @@ The application is split into three optimized Docker images:
 - **Database-driven queue system** for reliable job processing
 - **Separate containers** for better resource management and scaling
 - **Dokploy compatible** for easy deployment
-- **Custom entrypoint script** for not overloading server during deployment
+- **Intelligent entrypoint scripts** for reliable database connectivity and deployment
+- **Advanced database readiness checks** with fallback mechanisms
+- **Organized script structure** in dedicated `scripts/` folder
 
 ## Quick Start
 
@@ -71,6 +73,22 @@ The application is split into three optimized Docker images:
 5. **Access the application**
    - Web Application: http://localhost:8000
    - Database: localhost:3306
+   - Health Check: http://localhost:8000/api/health
+
+## Testing the Setup
+
+After starting the containers, you can test various endpoints:
+
+```bash
+# Test basic health check
+curl http://localhost:8000/api/health/simple
+
+# Test detailed health check (includes database, cache, app status)
+curl http://localhost:8000/api/health
+
+# Test queue functionality
+curl http://localhost:8000/api/queue-job
+```
 
 ## Production Deployment
 
@@ -164,42 +182,65 @@ QUEUE_CONNECTION=database
 - **Base**: PHP 8.2 FPM Alpine
 - **Features**: OPcache, production PHP settings, health checks
 - **Port**: 8000
-- **Health Check**: HTTP endpoint `/api/health/simple`
+- **Health Check**: HTTP endpoints `/api/health` and `/api/health/simple`
+- **Entrypoint**: `scripts/docker-entrypoint.sh`
 
 ### Queue Worker Container
 - **Base**: PHP 8.2 CLI Alpine
 - **Features**: Optimized for background processing
 - **Command**: `php artisan queue:work --verbose --sleep=3 --tries=3`
 - **Health Check**: Process monitoring
+- **Entrypoint**: `scripts/docker-entrypoint-queue.sh`
 
 ### Scheduler Container
 - **Base**: PHP 8.2 CLI Alpine
 - **Features**: Laravel task scheduling
 - **Command**: `php artisan schedule:work --verbose`
 - **Health Check**: Process monitoring
+- **Entrypoint**: `scripts/docker-entrypoint-scheduler.sh`
 
 ## Monitoring and Health Checks
 
-All containers include health checks:
+All containers include comprehensive health checks:
 
-- **App**: HTTP health endpoint
+- **App**: HTTP health endpoints (`/api/health` for detailed status, `/api/health/simple` for basic check)
 - **Queue**: Process monitoring for queue workers
 - **Scheduler**: Process monitoring for scheduler
 
+### Available Health Endpoints
+
+```bash
+# Basic health check - returns simple OK status
+GET /api/health/simple
+# Response: {"status":"ok","timestamp":"2025-07-12T..."}
+
+# Detailed health check - includes database, cache, and app status
+GET /api/health  
+# Response: {"status":"ok","timestamp":"...","checks":{"database":"ok","cache":"ok","app":"ok"}}
+```
+
 ## Entrypoint Scripts Automation
 
-Each container includes intelligent entrypoint scripts that handle deployment automatically:
+Each container includes intelligent entrypoint scripts located in the `scripts/` folder that handle deployment automatically:
 
-### App Container (`docker-entrypoint.sh`)
-- **Database Connection**: Waits for database to be ready
+### App Container (`scripts/docker-entrypoint.sh`)
+- **Advanced Database Connection**: Multi-stage database readiness checks with PHP PDO validation
+- **Fallback Script**: Uses `scripts/wait-for-db.sh` for advanced connectivity testing
 - **Automatic Migrations**: Runs `php artisan migrate --force` on startup
 - **Performance Optimization**: Caches config, routes, and views
+- **Graceful Error Handling**: Comprehensive logging and error recovery
 
-### Queue & Scheduler Containers
+### Queue & Scheduler Containers (`scripts/docker-entrypoint-queue.sh`, `scripts/docker-entrypoint-scheduler.sh`)
 - **Smart Waiting**: Initial 60-second wait for app container deployment
 - **Migration Verification**: Checks that migrations are complete before starting
+- **Database Connectivity**: Validates database connection before proceeding
 - **Exponential Backoff**: Intelligent retry logic with increasing wait times
 - **Graceful Failure**: Exits cleanly if database isn't ready after max attempts
+
+### Database Readiness Script (`scripts/wait-for-db.sh`)
+- **Advanced Connection Testing**: Tests database connectivity with multiple methods
+- **Timeout Handling**: Configurable timeout with detailed logging
+- **Troubleshooting Support**: Provides detailed connection diagnostics
 
 ## Optimization Features
 
@@ -209,6 +250,26 @@ Each container includes intelligent entrypoint scripts that handle deployment au
 - **Proper file permissions** and security
 - **Alpine Linux** for minimal footprint
 - **Automated deployment scripts** for zero-touch deployments
+- **Organized script structure** in dedicated `scripts/` folder
+- **Advanced database readiness checks** with fallback mechanisms
+- **Comprehensive logging** for debugging and monitoring
+
+## Project Structure
+
+```
+├── app/                           # Laravel application code
+├── scripts/                       # Docker entrypoint and utility scripts
+│   ├── docker-entrypoint.sh       # Main app container entrypoint
+│   ├── docker-entrypoint-queue.sh # Queue worker entrypoint
+│   ├── docker-entrypoint-scheduler.sh # Scheduler entrypoint
+│   └── wait-for-db.sh             # Advanced database connectivity script
+├── Dockerfile                     # Main app container
+├── Dockerfile.queue               # Queue worker container
+├── Dockerfile.cron                # Scheduler container
+├── docker-compose.yml             # Local development setup
+├── TROUBLESHOOTING.md             # Diagnostic and recovery guide
+└── README.md                      # This file
+```
 
 ## Support
 
