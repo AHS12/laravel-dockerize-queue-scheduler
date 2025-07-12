@@ -66,14 +66,9 @@ The application is split into three optimized Docker images:
    docker-compose up -d
    ```
 
-5. **Generate application key** (if needed)
-   ```bash
-   docker-compose exec app php artisan key:generate
-   ```
-
    > **Note**: Migrations are handled automatically by the entrypoint scripts. The app container runs migrations on startup, and the queue/scheduler containers wait for migrations to complete before starting.
 
-6. **Access the application**
+5. **Access the application**
    - Web Application: http://localhost:8000
    - Database: localhost:3306
 
@@ -81,7 +76,7 @@ The application is split into three optimized Docker images:
 
 ### Using Dokploy
 
-These Dockerfiles are specifically designed for **Dokploy** deployment. Since Dokploy currently **does not support worker nodes**, I've created separate Docker images for each service to work around this limitation.
+These Dockerfiles are specifically designed for **Dokploy** deployment. Since Dokploy currently **does not support worker nodes**, we've created separate Docker images for each service to work around this limitation.
 
 1. **Deploy App Service**
    - Use `Dockerfile` for the main web application
@@ -191,6 +186,21 @@ All containers include health checks:
 - **Queue**: Process monitoring for queue workers
 - **Scheduler**: Process monitoring for scheduler
 
+## Entrypoint Scripts Automation
+
+Each container includes intelligent entrypoint scripts that handle deployment automatically:
+
+### App Container (`docker-entrypoint.sh`)
+- **Database Connection**: Waits for database to be ready
+- **Automatic Migrations**: Runs `php artisan migrate --force` on startup
+- **Performance Optimization**: Caches config, routes, and views
+
+### Queue & Scheduler Containers
+- **Smart Waiting**: Initial 60-second wait for app container deployment
+- **Migration Verification**: Checks that migrations are complete before starting
+- **Exponential Backoff**: Intelligent retry logic with increasing wait times
+- **Graceful Failure**: Exits cleanly if database isn't ready after max attempts
+
 ## Optimization Features
 
 - **Multi-stage builds** to reduce image size
@@ -198,6 +208,7 @@ All containers include health checks:
 - **Optimized Composer autoloading**
 - **Proper file permissions** and security
 - **Alpine Linux** for minimal footprint
+- **Automated deployment scripts** for zero-touch deployments
 
 ## Support
 
