@@ -1,6 +1,6 @@
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<h1 align="center">Laravel Dockerized with Queue & Scheduler (Dokploy Support)</h1>
+<h1 align="center">Laravel Dockerized with Queue & Scheduler image (Dokploy Support)</h1>
 
 ## Overview
 
@@ -12,7 +12,7 @@ The application is split into three optimized Docker images:
 
 1. **App Container** (`Dockerfile`) - Web application with PHP-FPM and built-in server
 2. **Queue Worker** (`Dockerfile.queue`) - Background job processor
-3. **Scheduler** (`Dockerfile.cron`) - Laravel task scheduler
+3. **Scheduler** (`Dockerfile.cron`) - Laravel task scheduler(cron)
 
 ## Key Features
 
@@ -22,21 +22,20 @@ The application is split into three optimized Docker images:
 - **Database-driven queue system** for reliable job processing
 - **Separate containers** for better resource management and scaling
 - **Dokploy compatible** for easy deployment
+- **Custom entrypoint script** for not overloading server during deployment
 
 ## Quick Start
 
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- PHP 8.2+ (for local development)
-- MySQL 8.0+
 
 ### Local Development Setup
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd laravel-dockerize-queue-schedular
+   git clone https://github.com/AHS12/laravel-dockerize-queue-scheduler-dokploy.git
+   cd laravel-dockerize-queue-schedular-dokploy
    ```
 
 2. **Copy environment file**
@@ -67,18 +66,12 @@ The application is split into three optimized Docker images:
    docker-compose up -d
    ```
 
-5. **Run initial setup**
+5. **Generate application key** (if needed)
    ```bash
-   # Generate application key
    docker-compose exec app php artisan key:generate
-
-   # Run migrations
-   docker-compose exec app php artisan migrate
-
-   # Create queue table
-   docker-compose exec app php artisan queue:table
-   docker-compose exec app php artisan migrate
    ```
+
+   > **Note**: Migrations are handled automatically by the entrypoint scripts. The app container runs migrations on startup, and the queue/scheduler containers wait for migrations to complete before starting.
 
 6. **Access the application**
    - Web Application: http://localhost:8000
@@ -88,7 +81,7 @@ The application is split into three optimized Docker images:
 
 ### Using Dokploy
 
-These Dockerfiles are specifically designed for **Dokploy** deployment, which uses individual Dockerfiles to build separate services.
+These Dockerfiles are specifically designed for **Dokploy** deployment. Since Dokploy currently **does not support worker nodes**, I've created separate Docker images for each service to work around this limitation.
 
 1. **Deploy App Service**
    - Use `Dockerfile` for the main web application
@@ -96,10 +89,12 @@ These Dockerfiles are specifically designed for **Dokploy** deployment, which us
 
 2. **Deploy Queue Worker**
    - Use `Dockerfile.queue` for background job processing
+   - Deploy as a separate service in Dokploy since worker nodes aren't supported
    - Ensure database connectivity
 
 3. **Deploy Scheduler**
    - Use `Dockerfile.cron` for Laravel task scheduling
+   - Deploy as a separate service in Dokploy since worker nodes aren't supported
    - Configure as a separate service in Dokploy
 
 ### Manual Docker Deployment
@@ -119,22 +114,19 @@ docker build -f Dockerfile.cron -t laravel-scheduler .
 
 ## Why Three Separate Images?
 
-### Benefits of Separation
+### Primary Reason: Dokploy Limitation
 
-1. **Resource Optimization**: Each service can be scaled independently based on demand
-2. **Fault Isolation**: If one service fails, others continue running
-3. **Specialized Configuration**: Each container is optimized for its specific role
-4. **Better Monitoring**: Individual health checks and logging per service
-5. **Deployment Flexibility**: Deploy and update services independently
+**Dokploy currently does not support worker nodes**, which means you cannot run background processes (queues, schedulers) as workers within the same service. This architectural choice solves that limitation by creating separate deployable services.
 
-### Queue Driver: Database
+### Additional Benefits of Separation
 
-This application uses **database** as the queue driver because:
+1. **Dokploy Compatibility**: Works around the current worker node limitation
+2. **Resource Optimization**: Each service can be scaled independently based on demand
+3. **Fault Isolation**: If one service fails, others continue running
+4. **Specialized Configuration**: Each container is optimized for its specific role
+5. **Better Monitoring**: Individual health checks and logging per service
+6. **Deployment Flexibility**: Deploy and update services independently
 
-- **Reliability**: Database transactions ensure job persistence
-- **Simplicity**: No additional infrastructure (Redis/RabbitMQ) required
-- **Consistency**: Jobs are stored alongside application data
-- **Monitoring**: Easy to query and monitor job status
 
 ## Docker Compose for Local Development Only
 
